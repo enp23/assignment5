@@ -43,6 +43,7 @@ def calculator():
 # Test Calculator Initialization
 
 def test_calculator_initialization(calculator):
+    """Verify calculator initializes with empty history, stacks, and no operation set."""
     assert calculator.history == []
     assert calculator.undo_stack == []
     assert calculator.redo_stack == []
@@ -52,6 +53,7 @@ def test_calculator_initialization(calculator):
 
 @patch('app.calculator.logging.info')
 def test_logging_setup(logging_info_mock):
+    """Verify that calculator logs a message on successful initialization."""
     with patch.object(CalculatorConfig, 'log_dir', new_callable=PropertyMock) as mock_log_dir, \
          patch.object(CalculatorConfig, 'log_file', new_callable=PropertyMock) as mock_log_file:
         mock_log_dir.return_value = Path('/tmp/logs')
@@ -90,20 +92,29 @@ def test_init_history_load_failure():
             calc = Calculator()  # should still initialize, just log a warning
             assert calc.history == []
 
-
 #-----------------------------------------
-# Observer Tests
+# Observer Tests using parameterized tests
 #-----------------------------------------
 
-# Test Adding and Removing Observers
-
-def test_add_observer(calculator):
-    observer = LoggingObserver()
+@pytest.mark.parametrize("observer_class", [
+    LoggingObserver,
+    AutoSaveObserver,
+])
+def test_add_observer(calculator, observer_class):
+    """Verify that observers can be added to the calculator."""
+    observer = observer_class(calculator) if observer_class == AutoSaveObserver else observer_class()
     calculator.add_observer(observer)
     assert observer in calculator.observers
 
-def test_remove_observer(calculator):
-    observer = LoggingObserver()
+
+@pytest.mark.parametrize("observer_class", [
+    LoggingObserver,
+    AutoSaveObserver,
+])
+
+def test_remove_observer(calculator, observer_class):
+    """Verify that observers can be removed from the calculator."""
+    observer = observer_class(calculator) if observer_class == AutoSaveObserver else observer_class()
     calculator.add_observer(observer)
     calculator.remove_observer(observer)
     assert observer not in calculator.observers
@@ -115,24 +126,34 @@ def test_remove_observer(calculator):
 # Test Setting Operations
 
 def test_set_operation(calculator):
+    """Verify that set_operation correctly assigns the operation strategy."""
     operation = OperationFactory.create_operation('add')
     calculator.set_operation(operation)
     assert calculator.operation_strategy == operation
 
 # Test Performing Operations
 
-def test_perform_operation_addition(calculator):
-    operation = OperationFactory.create_operation('add')
-    calculator.set_operation(operation)
-    result = calculator.perform_operation(2, 3)
-    assert result == Decimal('5')
+@pytest.mark.parametrize("op_name, a, b, expected", [
+    ("add",      2, 3, Decimal("5")),   # addition
+    ("subtract", 5, 3, Decimal("2")),   # subtraction
+    ("multiply", 4, 3, Decimal("12")),  # multiplication
+    ("divide",   6, 2, Decimal("3")),   # division
+    ("power",    2, 3, Decimal("8")),   # power
+])
+def test_perform_operation_valid(calculator, op_name, a, b, expected):
+    """Verify that valid operations produce the correct result."""
+    calculator.set_operation(OperationFactory.create_operation(op_name))
+    result = calculator.perform_operation(a, b)
+    assert result == expected
 
 def test_perform_operation_validation_error(calculator):
+    """Verify that invalid input raises a ValidationError."""
     calculator.set_operation(OperationFactory.create_operation('add'))
     with pytest.raises(ValidationError):
         calculator.perform_operation('invalid', 3)
 
 def test_perform_operation_operation_error(calculator):
+    """Verify that performing an operation without setting one raises OperationError."""
     with pytest.raises(OperationError, match="No operation set"):
         calculator.perform_operation(2, 3)
 
@@ -155,6 +176,7 @@ def test_calculate_unexpected_error(calculator):
 # Test Undo/Redo Functionality
 
 def test_undo(calculator):
+    """Verify that undo removes the last calculation from history."""
     operation = OperationFactory.create_operation('add')
     calculator.set_operation(operation)
     calculator.perform_operation(2, 3)
@@ -162,6 +184,7 @@ def test_undo(calculator):
     assert calculator.history == []
 
 def test_redo(calculator):
+    """Verify that redo restores the last undone calculation."""
     operation = OperationFactory.create_operation('add')
     calculator.set_operation(operation)
     calculator.perform_operation(2, 3)
@@ -194,6 +217,7 @@ def test_redo_empty_stack(calculator):
 
 @patch('app.calculator.pd.DataFrame.to_csv')
 def test_save_history(mock_to_csv, calculator):
+    """Verify that save_history calls to_csv once after a calculation."""
     operation = OperationFactory.create_operation('add')
     calculator.set_operation(operation)
     calculator.perform_operation(2, 3)
@@ -221,6 +245,7 @@ def test_save_history_failure(mock_to_csv, calculator):
 @patch('app.calculator.pd.read_csv')
 @patch('app.calculator.Path.exists', return_value=True)
 def test_load_history(mock_exists, mock_read_csv, calculator):
+    """Verify that load_history correctly loads calculations from a CSV file."""
     # Mock CSV data to match the expected format in from_dict
     mock_read_csv.return_value = pd.DataFrame({
         'operation': ['Addition'],
@@ -268,6 +293,7 @@ def test_load_empty_history_file(mock_exists, mock_read_csv, calculator):
 # Test Clearing History
 
 def test_clear_history(calculator):
+    """Verify that clear_history empties history, undo, and redo stacks."""
     operation = OperationFactory.create_operation('add')
     calculator.set_operation(operation)
     calculator.perform_operation(2, 3)
@@ -368,6 +394,7 @@ def test_memento_from_dict():
 @patch('builtins.input', side_effect=['exit'])
 @patch('builtins.print')
 def test_calculator_repl_exit(mock_print, mock_input):
+    """Verify that exit saves history and prints goodbye message."""
     with patch('app.calculator.Calculator.save_history') as mock_save_history:
         calculator_repl()
         mock_save_history.assert_called_once()
@@ -377,14 +404,24 @@ def test_calculator_repl_exit(mock_print, mock_input):
 @patch('builtins.input', side_effect=['help', 'exit'])
 @patch('builtins.print')
 def test_calculator_repl_help(mock_print, mock_input):
+    """Verify that the help command prints available commands."""
     calculator_repl()
     mock_print.assert_any_call("\nAvailable commands:")
 
-@patch('builtins.input', side_effect=['add', '2', '3', 'exit'])
+@pytest.mark.parametrize("command, a, b, expected_result", [
+    ("add",      "2", "3", "\nResult: 5"),   # addition
+    ("subtract", "5", "3", "\nResult: 2"),   # subtraction
+    ("multiply", "4", "3", "\nResult: 12"),  # multiplication
+    ("divide",   "6", "2", "\nResult: 3"),   # division
+    ("power",    "2", "3", "\nResult: 8"),   # power
+    ("root",     "16","2", "\nResult: 4"),   # root
+])
 @patch('builtins.print')
-def test_calculator_repl_addition(mock_print, mock_input):
-    calculator_repl()
-    mock_print.assert_any_call("\nResult: 5")
+def test_repl_arithmetic_operations(mock_print, command, a, b, expected_result):
+    """Verify that arithmetic commands produce correct results in the REPL."""
+    with patch('builtins.input', side_effect=[command, a, b, 'exit']):
+        calculator_repl()
+        mock_print.assert_any_call(expected_result)
 
 @patch('builtins.input', side_effect=['history', 'exit'])
 @patch('builtins.print')
@@ -413,33 +450,32 @@ def test_repl_clear(mock_print, mock_input):
     calculator_repl()
     mock_print.assert_any_call("History cleared")
 
-@patch('builtins.input', side_effect=['undo', 'exit'])
+@pytest.mark.parametrize("inputs, expected_message", [
+    (['undo', 'exit'],                    "Nothing to undo"),   # nothing to undo
+    (['add', '2', '3', 'undo', 'exit'],   "Operation undone"),  # successful undo
+    (['redo', 'exit'],                    "Nothing to redo"),   # nothing to redo
+    (['add', '2', '3', 'undo', 'redo', 'exit'], "Operation redone"),  # successful redo
+])
 @patch('builtins.print')
-def test_repl_undo_nothing(mock_print, mock_input):
-    """Verify that the undo command prints a message when there is nothing to undo."""
-    calculator_repl()
-    mock_print.assert_any_call("Nothing to undo")
+def test_repl_undo_redo(mock_print, inputs, expected_message):
+    """Verify undo and redo commands produce correct messages."""
+    with patch('builtins.input', side_effect=inputs):
+        calculator_repl()
+        mock_print.assert_any_call(expected_message)
 
-@patch('builtins.input', side_effect=['add', '2', '3', 'undo', 'exit'])
+@pytest.mark.parametrize("inputs, patch_target, patch_side_effect, expected_message", [
+    (['save', 'exit'], 'app.calculator.Calculator.save_history',
+     Exception("save error"), "Error saving history: save error"),
+    (['load', 'exit'], 'app.calculator.Calculator.load_history',
+     Exception("load error"), "Error loading history: load error"),
+])
 @patch('builtins.print')
-def test_repl_undo_success(mock_print, mock_input):
-    """Verify that the undo command successfully reverses the last operation."""
-    calculator_repl()
-    mock_print.assert_any_call("Operation undone")
-
-@patch('builtins.input', side_effect=['redo', 'exit'])
-@patch('builtins.print')
-def test_repl_redo_nothing(mock_print, mock_input):
-    """Verify that the redo command prints a message when there is nothing to redo."""
-    calculator_repl()
-    mock_print.assert_any_call("Nothing to redo")
-
-@patch('builtins.input', side_effect=['add', '2', '3', 'undo', 'redo', 'exit'])
-@patch('builtins.print')
-def test_repl_redo_success(mock_print, mock_input):
-    """Verify that the redo command successfully reapplies the last undone operation."""
-    calculator_repl()
-    mock_print.assert_any_call("Operation redone")
+def test_repl_command_failures(mock_print, inputs, patch_target, patch_side_effect, expected_message):
+    """Verify that save and load command failures print appropriate error messages."""
+    with patch('builtins.input', side_effect=inputs):
+        with patch(patch_target, side_effect=patch_side_effect):
+            calculator_repl()
+            mock_print.assert_any_call(expected_message)
 
 @patch('builtins.input', side_effect=['save', 'exit'])
 @patch('builtins.print')
@@ -447,14 +483,13 @@ def test_repl_save(mock_print, mock_input):
     """Verify that the save command saves history and prints a success message."""
     calculator_repl()
     mock_print.assert_any_call("History saved successfully")
-
-@patch('builtins.input', side_effect=['save', 'exit'])
+    
+@patch('builtins.input', side_effect=['load', 'exit'])
 @patch('builtins.print')
-def test_repl_save_failure(mock_print, mock_input):
-    """Verify that a save command failure prints an appropriate error message."""
-    with patch('app.calculator.Calculator.save_history', side_effect=Exception("save error")):
-        calculator_repl()
-        mock_print.assert_any_call("Error saving history: save error")
+def test_repl_load(mock_print, mock_input):
+    """Verify that the load command loads history and prints a success message."""
+    calculator_repl()
+    mock_print.assert_any_call("History loaded successfully")
 
 @patch('builtins.input', side_effect=['exit'])
 @patch('builtins.print')
@@ -464,38 +499,19 @@ def test_repl_exit_save_failure(mock_print, mock_input):
         calculator_repl()
         mock_print.assert_any_call("Warning: Could not save history: save error")
 
-@patch('builtins.input', side_effect=['load', 'exit'])
+@pytest.mark.parametrize("inputs, expected_message", [
+    (['add', 'cancel', 'exit'],    "Operation cancelled"),  # cancel first number
+    (['add', '2', 'cancel', 'exit'], "Operation cancelled"), # cancel second number
+])
 @patch('builtins.print')
-def test_repl_load(mock_print, mock_input):
-    """Verify that the load command loads history and prints a success message."""
-    calculator_repl()
-    mock_print.assert_any_call("History loaded successfully")
+def test_repl_cancel_operation(mock_print, inputs, expected_message):
+    """Verify that entering cancel at either number prompt aborts the operation."""
+    with patch('builtins.input', side_effect=inputs):
+        with patch('app.calculator_repl.Calculator') as mock_calc:
+            mock_calc.return_value.show_history.return_value = []
+            calculator_repl()
+            mock_print.assert_any_call(expected_message)
 
-@patch('builtins.input', side_effect=['load', 'exit'])
-@patch('builtins.print')
-def test_repl_load_failure(mock_print, mock_input):
-    """Verify that a load command failure prints an appropriate error message."""
-    with patch('app.calculator.Calculator.load_history', side_effect=Exception("load error")):
-        calculator_repl()
-        mock_print.assert_any_call("Error loading history: load error")
-    
-@patch('builtins.input', side_effect=['add', 'cancel', 'exit'])
-@patch('builtins.print')
-def test_repl_cancel_first_number(mock_print, mock_input):
-    """
-    Verify that entering 'cancel' at the first number prompt aborts the operation.
-    """
-    with patch('app.calculator_repl.Calculator') as mock_calc:
-        mock_calc.return_value.show_history.return_value = []
-        calculator_repl()
-        mock_print.assert_any_call("Operation cancelled")
-
-@patch('builtins.input', side_effect=['add', '2', 'cancel', 'exit'])
-@patch('builtins.print')
-def test_repl_cancel_second_number(mock_print, mock_input):
-    """Verify that entering 'cancel' at the second number prompt aborts the operation."""
-    calculator_repl()
-    mock_print.assert_any_call("Operation cancelled")
 
 @patch('builtins.input', side_effect=['add', 'invalid', '3', 'exit'])
 @patch('builtins.print')
