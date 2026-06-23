@@ -1,0 +1,48 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-8.3.3, pluggy-1.5.0 -- /home/emily/projects/assignment5/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/emily/projects/assignment5
+configfile: pytest.ini
+plugins: pylint-0.21.0, cov-6.0.0
+collecting ... collected 52 items
+
+tests/test_calculator.py::test_calculator_initialization PASSED          [  1%]
+tests/test_calculator.py::test_logging_setup PASSED                      [  3%]
+tests/test_calculator.py::test_add_observer PASSED                       [  5%]
+tests/test_calculator.py::test_remove_observer PASSED                    [  7%]
+tests/test_calculator.py::test_set_operation PASSED                      [  9%]
+tests/test_calculator.py::test_perform_operation_addition PASSED         [ 11%]
+tests/test_calculator.py::test_perform_operation_validation_error PASSED [ 13%]
+tests/test_calculator.py::test_perform_operation_operation_error PASSED  [ 15%]
+tests/test_calculator.py::test_undo PASSED                               [ 17%]
+tests/test_calculator.py::test_redo PASSED                               [ 19%]
+tests/test_calculator.py::test_save_history PASSED                       [ 21%]
+tests/test_calculator.py::test_load_history PASSED                       [ 23%]
+tests/test_calculator.py::test_clear_history PASSED                      [ 25%]
+tests/test_calculator.py::test_calculator_repl_exit PASSED               [ 26%]
+tests/test_calculator.py::test_calculator_repl_help PASSED               [ 28%]
+tests/test_calculator.py::test_calculator_repl_addition PASSED           [ 30%]
+tests/test_calculator.py::test_init_history_load_failure PASSED          [ 32%]
+tests/test_calculator.py::test_logging_setup_failure PASSED              [ 34%]
+tests/test_calculator.py::test_history_max_size PASSED                   [ 36%]
+tests/test_calculator.py::test_calculate_unexpected_error PASSED         [ 38%]
+tests/test_calculator.py::test_save_empty_history PASSED                 [ 40%]
+tests/test_calculator.py::test_save_history_failure PASSED               [ 42%]
+tests/test_calculator.py::test_load_history_failure PASSED               [ 44%]
+tests/test_calculator.py::test_load_empty_history_file PASSED            [ 46%]
+tests/test_calculator.py::test_get_history_dataframe_empty PASSED        [ 48%]
+tests/test_calculator.py::test_get_history_dataframe_with_data PASSED    [ 50%]
+tests/test_calculator.py::test_undo_empty_stack PASSED                   [ 51%]
+tests/test_calculator.py::test_redo_empty_stack PASSED                   [ 53%]
+tests/test_calculator.py::test_show_history PASSED                       [ 55%]
+tests/test_calculator.py::test_memento_to_dict PASSED                    [ 57%]
+tests/test_calculator.py::test_memento_from_dict PASSED                  [ 59%]
+tests/test_calculator.py::test_repl_history_empty PASSED                 [ 61%]
+tests/test_calculator.py::test_repl_clear PASSED                         [ 63%]
+tests/test_calculator.py::test_repl_undo_nothing PASSED                  [ 65%]
+tests/test_calculator.py::test_repl_undo_success PASSED                  [ 67%]
+tests/test_calculator.py::test_repl_redo_nothing PASSED                  [ 69%]
+tests/test_calculator.py::test_repl_redo_success PASSED                  [ 71%]
+tests/test_calculator.py::test_repl_save PASSED                          [ 73%]
+tests/test_calculator.py::test_repl_load PASSED                          [ 75%]
+tests/test_calculator.py::test_repl_cancel_first_number 
