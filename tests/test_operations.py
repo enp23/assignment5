@@ -13,215 +13,194 @@ from app.operations import (
     Root,
     OperationFactory,
 )
+#--------------------------------------------
+#  Operation base class 
+#--------------------------------------------
+
+def test_operation_str_representation():
+    """Verify that string representation of an operation returns its class name."""
+    class TestOp(Operation):
+        def execute(self, a: Decimal, b: Decimal) -> Decimal:
+            return a
+    assert str(TestOp()) == "TestOp"
+
+# Updated below to use parameterized tests
+
+#-------------------------------------------
+# Addition 
+#-------------------------------------------
+
+@pytest.mark.parametrize("a, b, expected", [
+    ("5",    "3",    "8"),    # positive numbers
+    ("-5",   "-3",   "-8"),   # negative numbers
+    ("-5",   "3",    "-2"),   # mixed signs
+    ("5",    "-5",   "0"),    # zero sum
+    ("5.5",  "3.3",  "8.8"), # decimals
+    ("1e10", "1e10", "20000000000"),  # large numbers
+])
+def test_addition(a, b, expected):
+    """Verify addition produces correct results across multiple input types."""
+    result = Addition().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
+
+#-----------------------------------------
+# Subtraction 
+#-----------------------------------------
+
+@pytest.mark.parametrize("a, b, expected", [
+    ("5",    "3",   "2"),           # positive numbers
+    ("-5",   "-3",  "-2"),          # negative numbers
+    ("-5",   "3",   "-8"),          # mixed signs
+    ("5",    "5",   "0"),           # zero result
+    ("5.5",  "3.3", "2.2"),         # decimals
+    ("1e5",  "1e5", "0"), # large numbers
+])
+def test_subtraction(a, b, expected):
+    """Verify subtraction produces correct results across multiple input types."""
+    result = Subtraction().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
+
+#---------------------------------------
+#  Multiplication 
+#---------------------------------------
+
+@pytest.mark.parametrize("a, b, expected", [
+    ("5",    "3",   "15"),          # positive numbers
+    ("-5",   "-3",  "15"),          # negative numbers
+    ("-5",   "3",   "-15"),         # mixed signs
+    ("5",    "0",   "0"),           # multiply by zero
+    ("5.5",  "3.3", "18.15"),       # decimals
+])
+def test_multiplication(a, b, expected):
+    """Verify multiplication produces correct results across multiple input types."""
+    result = Multiplication().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
+
+#-----------------------------------
+#  Division 
+#-----------------------------------
+
+@pytest.mark.parametrize("a, b, expected", [
+    ("6",   "2",  "3"),    # positive numbers
+    ("-6",  "-2", "3"),    # negative numbers
+    ("-6",  "2",  "-3"),   # mixed signs
+    ("5.5", "2",  "2.75"), # decimals
+    ("0",   "5",  "0"),    # divide zero
+])
+def test_division_valid(a, b, expected):
+    """Verify division produces correct results for valid inputs."""
+    result = Division().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
 
 
-class TestOperation:
-    """Test base Operation class functionality."""
+@pytest.mark.parametrize("a, b, error, message", [
+    ("5", "0", ValidationError, "Division by zero is not allowed"),
+])
+def test_division_invalid(a, b, error, message):
+    """Verify division raises appropriate errors for invalid inputs."""
+    with pytest.raises(error, match=message):
+        Division().execute(Decimal(a), Decimal(b))
 
-    def test_str_representation(self):
-        """Test that string representation returns class name."""
-        class TestOp(Operation):
-            def execute(self, a: Decimal, b: Decimal) -> Decimal:
-                return a
+#----------------------------------
+#  Power
+#----------------------------------
 
-        assert str(TestOp()) == "TestOp"
-
-
-class BaseOperationTest:
-    """Base test class for all operations."""
-
-    operation_class: Type[Operation]
-    valid_test_cases: Dict[str, Dict[str, Any]]
-    invalid_test_cases: Dict[str, Dict[str, Any]]
-
-    def test_valid_operations(self):
-        """Test operation with valid inputs."""
-        operation = self.operation_class()
-        for name, case in self.valid_test_cases.items():
-            a = Decimal(str(case["a"]))
-            b = Decimal(str(case["b"]))
-            expected = Decimal(str(case["expected"]))
-            result = operation.execute(a, b)
-            assert result == expected, f"Failed case: {name}"
-
-    def test_invalid_operations(self):
-        """Test operation with invalid inputs raises appropriate errors."""
-        operation = self.operation_class()
-        for name, case in self.invalid_test_cases.items():
-            a = Decimal(str(case["a"]))
-            b = Decimal(str(case["b"]))
-            error = case.get("error", ValidationError)
-            error_message = case.get("message", "")
-
-            with pytest.raises(error, match=error_message):
-                operation.execute(a, b)
+@pytest.mark.parametrize("a, b, expected", [
+    ("2",   "3", "8"),    # positive base and exponent
+    ("5",   "0", "1"),    # zero exponent
+    ("5",   "1", "5"),    # one exponent
+    ("2.5", "2", "6.25"), # decimal base
+    ("0",   "5", "0"),    # zero base
+])
+def test_power_valid(a, b, expected):
+    """Verify power produces correct results for valid inputs."""
+    result = Power().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
 
 
-class TestAddition(BaseOperationTest):
-    """Test Addition operation."""
+@pytest.mark.parametrize("a, b, error, message", [
+    ("2", "-3", ValidationError, "Negative exponents not supported"),
+])
+def test_power_invalid(a, b, error, message):
+    """Verify power raises appropriate errors for invalid inputs."""
+    with pytest.raises(error, match=message):
+        Power().execute(Decimal(a), Decimal(b))
 
-    operation_class = Addition
-    valid_test_cases = {
-        "positive_numbers": {"a": "5", "b": "3", "expected": "8"},
-        "negative_numbers": {"a": "-5", "b": "-3", "expected": "-8"},
-        "mixed_signs": {"a": "-5", "b": "3", "expected": "-2"},
-        "zero_sum": {"a": "5", "b": "-5", "expected": "0"},
-        "decimals": {"a": "5.5", "b": "3.3", "expected": "8.8"},
-        "large_numbers": {
-            "a": "1e10",
-            "b": "1e10",
-            "expected": "20000000000"
-        },
-    }
-    invalid_test_cases = {}  # Addition has no invalid cases
+#------------------------------------------
+#  Root 
+#------------------------------------------
 
-
-class TestSubtraction(BaseOperationTest):
-    """Test Subtraction operation."""
-
-    operation_class = Subtraction
-    valid_test_cases = {
-        "positive_numbers": {"a": "5", "b": "3", "expected": "2"},
-        "negative_numbers": {"a": "-5", "b": "-3", "expected": "-2"},
-        "mixed_signs": {"a": "-5", "b": "3", "expected": "-8"},
-        "zero_result": {"a": "5", "b": "5", "expected": "0"},
-        "decimals": {"a": "5.5", "b": "3.3", "expected": "2.2"},
-        "large_numbers": {
-            "a": "1e10",
-            "b": "1e9",
-            "expected": "9000000000"
-        },
-    }
-    invalid_test_cases = {}  # Subtraction has no invalid cases
+@pytest.mark.parametrize("a, b, expected", [
+    ("9",    "2", "3"),   # square root
+    ("27",   "3", "3"),   # cube root
+    ("16",   "4", "2"),   # fourth root
+    ("2.25", "2", "1.5"), # decimal root
+])
+def test_root_valid(a, b, expected):
+    """Verify root produces correct results for valid inputs."""
+    result = Root().execute(Decimal(a), Decimal(b))
+    assert result == Decimal(expected)
 
 
-class TestMultiplication(BaseOperationTest):
-    """Test Multiplication operation."""
+@pytest.mark.parametrize("a, b, error, message", [
+    ("-9", "2", ValidationError, "Cannot calculate root of negative number"),
+    ("9",  "0", ValidationError, "Zero root is undefined"),
+])
+def test_root_invalid(a, b, error, message):
+    """Verify root raises appropriate errors for invalid inputs."""
+    with pytest.raises(error, match=message):
+        Root().execute(Decimal(a), Decimal(b))
 
-    operation_class = Multiplication
-    valid_test_cases = {
-        "positive_numbers": {"a": "5", "b": "3", "expected": "15"},
-        "negative_numbers": {"a": "-5", "b": "-3", "expected": "15"},
-        "mixed_signs": {"a": "-5", "b": "3", "expected": "-15"},
-        "multiply_by_zero": {"a": "5", "b": "0", "expected": "0"},
-        "decimals": {"a": "5.5", "b": "3.3", "expected": "18.15"},
-        "large_numbers": {
-            "a": "1e5",
-            "b": "1e5",
-            "expected": "10000000000"
-        },
-    }
-    invalid_test_cases = {}  # Multiplication has no invalid cases
+#---------------------------
+#  OperationFactory 
+#----------------------------
 
-
-class TestDivision(BaseOperationTest):
-    """Test Division operation."""
-
-    operation_class = Division
-    valid_test_cases = {
-        "positive_numbers": {"a": "6", "b": "2", "expected": "3"},
-        "negative_numbers": {"a": "-6", "b": "-2", "expected": "3"},
-        "mixed_signs": {"a": "-6", "b": "2", "expected": "-3"},
-        "decimals": {"a": "5.5", "b": "2", "expected": "2.75"},
-        "divide_zero": {"a": "0", "b": "5", "expected": "0"},
-    }
-    invalid_test_cases = {
-        "divide_by_zero": {
-            "a": "5",
-            "b": "0",
-            "error": ValidationError,
-            "message": "Division by zero is not allowed"
-        },
-    }
+@pytest.mark.parametrize("op_name, op_class", [
+    ("add",      Addition),
+    ("subtract", Subtraction),
+    ("multiply", Multiplication),
+    ("divide",   Division),
+    ("power",    Power),
+    ("root",     Root),
+])
+def test_factory_creates_valid_operations(op_name, op_class):
+    """Verify factory creates the correct operation instance for each valid name."""
+    assert isinstance(OperationFactory.create_operation(op_name), op_class)
 
 
-class TestPower(BaseOperationTest):
-    """Test Power operation."""
-
-    operation_class = Power
-    valid_test_cases = {
-        "positive_base_and_exponent": {"a": "2", "b": "3", "expected": "8"},
-        "zero_exponent": {"a": "5", "b": "0", "expected": "1"},
-        "one_exponent": {"a": "5", "b": "1", "expected": "5"},
-        "decimal_base": {"a": "2.5", "b": "2", "expected": "6.25"},
-        "zero_base": {"a": "0", "b": "5", "expected": "0"},
-    }
-    invalid_test_cases = {
-        "negative_exponent": {
-            "a": "2",
-            "b": "-3",
-            "error": ValidationError,
-            "message": "Negative exponents not supported"
-        },
-    }
+@pytest.mark.parametrize("op_name, op_class", [
+    ("ADD",      Addition),
+    ("SUBTRACT", Subtraction),
+    ("MULTIPLY", Multiplication),
+    ("DIVIDE",   Division),
+    ("POWER",    Power),
+    ("ROOT",     Root),
+])
+def test_factory_case_insensitive(op_name, op_class):
+    """Verify factory handles uppercase operation names correctly."""
+    assert isinstance(OperationFactory.create_operation(op_name), op_class)
 
 
-class TestRoot(BaseOperationTest):
-    """Test Root operation."""
-
-    operation_class = Root
-    valid_test_cases = {
-        "square_root": {"a": "9", "b": "2", "expected": "3"},
-        "cube_root": {"a": "27", "b": "3", "expected": "3"},
-        "fourth_root": {"a": "16", "b": "4", "expected": "2"},
-        "decimal_root": {"a": "2.25", "b": "2", "expected": "1.5"},
-    }
-    invalid_test_cases = {
-        "negative_base": {
-            "a": "-9",
-            "b": "2",
-            "error": ValidationError,
-            "message": "Cannot calculate root of negative number"
-        },
-        "zero_root": {
-            "a": "9",
-            "b": "0",
-            "error": ValidationError,
-            "message": "Zero root is undefined"
-        },
-    }
+def test_factory_invalid_operation():
+    """Verify factory raises ValueError for unknown operation names."""
+    with pytest.raises(ValueError, match="Unknown operation: invalid_op"):
+        OperationFactory.create_operation("invalid_op")
 
 
-class TestOperationFactory:
-    """Test OperationFactory functionality."""
+def test_factory_register_valid_operation():
+    """Verify a new valid operation can be registered and used via the factory."""
+    class NewOperation(Operation):
+        def execute(self, a: Decimal, b: Decimal) -> Decimal:
+            return a
 
-    def test_create_valid_operations(self):
-        """Test creation of all valid operations."""
-        operation_map = {
-            'add': Addition,
-            'subtract': Subtraction,
-            'multiply': Multiplication,
-            'divide': Division,
-            'power': Power,
-            'root': Root,
-        }
+    OperationFactory.register_operation("new_op", NewOperation)
+    assert isinstance(OperationFactory.create_operation("new_op"), NewOperation)
 
-        for op_name, op_class in operation_map.items():
-            operation = OperationFactory.create_operation(op_name)
-            assert isinstance(operation, op_class)
-            # Test case-insensitive
-            operation = OperationFactory.create_operation(op_name.upper())
-            assert isinstance(operation, op_class)
 
-    def test_create_invalid_operation(self):
-        """Test creation of invalid operation raises error."""
-        with pytest.raises(ValueError, match="Unknown operation: invalid_op"):
-            OperationFactory.create_operation("invalid_op")
+def test_factory_register_invalid_operation():
+    """Verify registering a class that doesn't inherit from Operation raises TypeError."""
+    class InvalidOperation:
+        pass
 
-    def test_register_valid_operation(self):
-        """Test registering a new valid operation."""
-        class NewOperation(Operation):
-            def execute(self, a: Decimal, b: Decimal) -> Decimal:
-                return a
-
-        OperationFactory.register_operation("new_op", NewOperation)
-        operation = OperationFactory.create_operation("new_op")
-        assert isinstance(operation, NewOperation)
-
-    def test_register_invalid_operation(self):
-        """Test registering an invalid operation class raises error."""
-        class InvalidOperation:
-            pass
-
-        with pytest.raises(TypeError, match="Operation class must inherit"):
-            OperationFactory.register_operation("invalid", InvalidOperation)
+    with pytest.raises(TypeError, match="Operation class must inherit"):
+        OperationFactory.register_operation("invalid", InvalidOperation)

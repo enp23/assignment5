@@ -71,3 +71,55 @@ def test_validate_number_none_value():
 def test_validate_number_non_numeric_type():
     with pytest.raises(ValidationError, match="Invalid number format: "):
         InputValidator.validate_number([], config)
+
+# Updated below to use parameterized tests
+
+#------------------------------------------
+#  Valid inputs 
+#------------------------------------------
+
+@pytest.mark.parametrize("value, expected", [
+    (123,          Decimal('123')),                      # positive integer
+    (123.456,      Decimal('123.456').normalize()),      # positive decimal
+    ("123",        Decimal('123')),                      # positive string integer
+    ("123.456",    Decimal('123.456').normalize()),      # positive string decimal
+    (-789,         Decimal('-789')),                     # negative integer
+    (-789.123,     Decimal('-789.123').normalize()),     # negative decimal
+    ("-789",       Decimal('-789')),                     # negative string integer
+    ("-789.123",   Decimal('-789.123').normalize()),     # negative string decimal
+    (0,            Decimal('0')),                        # zero
+    ("  456  ",    Decimal('456')),                      # trimmed string
+])
+def test_validate_number_valid(value, expected):
+    """Verify validate_number correctly converts valid inputs to Decimal."""
+    assert InputValidator.validate_number(value, config) == expected
+
+#--------------------------------------------
+#  Invalid format inputs 
+#--------------------------------------------
+
+@pytest.mark.parametrize("value, message", [
+    ("abc",  "Invalid number format: abc"),  # invalid string
+    ("",     "Invalid number format: "),     # empty string
+    ("   ",  "Invalid number format: "),     # whitespace string
+    (None,   "Invalid number format: None"), # None value
+    ([],     "Invalid number format: "),     # non-numeric type
+])
+def test_validate_number_invalid_format(value, message):
+    """Verify validate_number raises ValidationError for invalid format inputs."""
+    with pytest.raises(ValidationError, match=message):
+        InputValidator.validate_number(value, config)
+
+#--------------------------------------------
+#  Exceeds max value inputs 
+#--------------------------------------------
+
+@pytest.mark.parametrize("value", [
+    Decimal('1000001'),   # exceeds max as Decimal
+    "1000001",            # exceeds max as string
+    -Decimal('1000001'),  # exceeds max as negative Decimal
+])
+def test_validate_number_exceeds_max(value):
+    """Verify validate_number raises ValidationError when value exceeds maximum."""
+    with pytest.raises(ValidationError, match="Value exceeds maximum allowed"):
+        InputValidator.validate_number(value, config)
